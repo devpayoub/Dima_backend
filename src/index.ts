@@ -16,6 +16,8 @@ import transactionsRouter from './routes/transactions';
 import staffRouter from './routes/staff';
 import publicRouter from './routes/public';
 import adminRouter from './routes/admin';
+import stampRequestsRouter from './routes/stampRequests';
+import dashboardRouter from './routes/dashboard';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -42,6 +44,8 @@ app.use('/api/v1/transactions', transactionsRouter);
 app.use('/api/v1/staff', staffRouter);
 app.use('/api/v1/public', publicRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/stamp-requests', stampRequestsRouter);
+app.use('/api/v1/dashboard', dashboardRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

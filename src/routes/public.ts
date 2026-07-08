@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabaseAdmin } from '../supabaseClient';
+import { resolveOwnerIdFromSlug } from '../utils/auth';
 
 const router = Router();
 
@@ -80,6 +81,38 @@ router.post('/campaign/:slug/:campaignId/signup', async (req: Request, res: Resp
   }
 
   res.json(data);
+});
+
+// GET /api/v1/public/customer/:slug/:phone — Look up customer by phone
+router.get('/customer/:slug/:phone', async (req: Request, res: Response) => {
+  const { slug, phone } = req.params;
+
+  if (!phone || phone.trim().length === 0) {
+    res.status(400).json({ error: 'Phone number is required' });
+    return;
+  }
+
+  // Resolve owner_id from slug
+  const ownerResult = await resolveOwnerIdFromSlug(slug);
+  if ('error' in ownerResult) {
+    res.status(ownerResult.status).json({ error: ownerResult.error });
+    return;
+  }
+  const ownerId = ownerResult.ownerId;
+
+  const { data: customer, error } = await supabaseAdmin
+    .from('customers')
+    .select('id, name, email, mobile')
+    .eq('owner_id', ownerId)
+    .eq('mobile', phone.trim())
+    .maybeSingle();
+
+  if (error || !customer) {
+    res.json({ found: false });
+    return;
+  }
+
+  res.json({ found: true, name: customer.name, email: customer.email, mobile: customer.mobile });
 });
 
 // GET /api/v1/public/scan/:slug/:uniqueId — Scan entry context

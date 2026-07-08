@@ -46,10 +46,22 @@ export const supabaseAuth = createClient(supabaseUrl, supabaseServiceRoleKey || 
 /**
  * Returns an authenticated Supabase client scoped to the provided JWT.
  * The client sends the token as the Authorization header so RLS applies correctly.
+ * Cached per token to avoid creating a new client for every request.
  */
+const tokenClientCache = new Map<string, any>();
+
 export function supabaseForToken(token: string) {
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  const cached = tokenClientCache.get(token);
+  if (cached) return cached;
+  const client = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
+  tokenClientCache.set(token, client);
+  // Evict old entries if cache grows too large
+  if (tokenClientCache.size > 200) {
+    const firstKey = tokenClientCache.keys().next().value;
+    if (firstKey) tokenClientCache.delete(firstKey);
+  }
+  return client;
 }

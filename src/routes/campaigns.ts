@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { supabaseForToken, supabaseAdmin } from '../supabaseClient';
+import { supabaseAdmin } from '../supabaseClient';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { requireOwner } from '../middleware/requireOwner';
 import { rowToCampaign } from '../utils/mappers';
@@ -30,7 +30,7 @@ function campaignToRow(t: any, ownerId: string) {
 
 // GET /api/v1/campaigns
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
-  const db = supabaseForToken(req.user!.token);
+  const db = req.db!;
   const { data, error } = await db
     .from('campaigns')
     .select('*')
@@ -46,7 +46,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 
 // GET /api/v1/campaigns/count
 router.get('/count', async (req: AuthenticatedRequest, res: Response) => {
-  const db = supabaseForToken(req.user!.token);
+  const db = req.db!;
   const { count, error } = await db
     .from('campaigns')
     .select('*', { count: 'exact', head: true })
@@ -61,7 +61,7 @@ router.get('/count', async (req: AuthenticatedRequest, res: Response) => {
 
 // POST /api/v1/campaigns
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
-  const db = supabaseForToken(req.user!.token);
+  const db = req.db!;
   const row = campaignToRow(req.body, req.user!.id);
   const { error } = await db.from('campaigns').insert(row);
   if (error) {
@@ -73,7 +73,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 
 // PUT /api/v1/campaigns/:id — full update (Premium/Pro tier)
 router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  const db = supabaseForToken(req.user!.token);
+  const db = req.db!;
   const row = campaignToRow({ ...req.body, id: req.params.id }, req.user!.id);
   const { error } = await db.from('campaigns').upsert(row, { onConflict: 'id' });
   if (error) {
@@ -119,7 +119,7 @@ router.put('/:id/simple', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    const db = supabaseForToken(req.user!.token);
+    const db = req.db!;
     const { error } = await db
       .from('campaigns')
       .update({ name, reward_name, total_stamps })
@@ -143,7 +143,7 @@ router.patch('/:id/toggle', async (req: AuthenticatedRequest, res: Response) => 
     res.status(400).json({ error: 'isEnabled (boolean) is required' });
     return;
   }
-  const db = supabaseForToken(req.user!.token);
+  const db = req.db!;
   const { error } = await db
     .from('campaigns')
     .update({ is_enabled: isEnabled })
@@ -159,7 +159,7 @@ router.patch('/:id/toggle', async (req: AuthenticatedRequest, res: Response) => 
 
 // DELETE /api/v1/campaigns/:id
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  const db = supabaseForToken(req.user!.token);
+  const db = req.db!;
   const { data, error } = await db.rpc('delete_campaign_preserve_cards', {
     campaign_id_input: req.params.id,
   });

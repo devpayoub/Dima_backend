@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { supabaseAdmin, supabaseAuth } from '../supabaseClient';
+import { supabaseAdmin, supabaseAuth, supabaseForToken } from '../supabaseClient';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -9,6 +9,7 @@ export interface AuthenticatedRequest extends Request {
     ownerId?: string;
     token: string;
   };
+  db?: ReturnType<typeof supabaseForToken>;
 }
 
 export async function requireAuth(
@@ -45,6 +46,8 @@ export async function requireAuth(
     ownerId: profile?.owner_id,
     token,
   };
+
+  req.db = supabaseForToken(token);
 
   next();
 }

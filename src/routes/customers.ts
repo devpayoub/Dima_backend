@@ -1,15 +1,16 @@
 import { Router, Response } from 'express';
-import { supabaseForToken } from '../supabaseClient';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { rowToTransaction, rowToIssuedCard } from '../utils/mappers';
+import { resolveOwnerId } from '../utils/auth';
+import { parsePagination, paginatedResponse, type PaginationParams } from '../utils/pagination';
 
 const router = Router();
 router.use(requireAuth as any);
 
 // GET /api/v1/customers — list with issued cards + transaction history
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
-  const db = supabaseForToken(req.user!.token);
-  const ownerId = req.user!.role === 'owner' ? req.user!.id : req.user!.ownerId;
+  const db = req.db!;
+  const ownerId = resolveOwnerId(req.user!);
 
   const { data: customerRows, error: cErr } = await db
     .from('customers')
@@ -23,7 +24,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   }
 
   if (!customerRows || customerRows.length === 0) {
-    res.json([]);
+    res.json(req.query.page !== undefined ? paginatedResponse([], 0, parsePagination(req)) : []);
     return;
   }
 
@@ -65,13 +66,21 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     cards: cardsByCustomer[c.id] ?? [],
   }));
 
-  res.json(result);
+  // Pagination (backward-compatible: no ?page param returns full array)
+  if (req.query.page !== undefined) {
+    const pagination = parsePagination(req);
+    const total = result.length;
+    const paginated = result.slice(pagination.offset, pagination.offset + pagination.limit);
+    res.json(paginatedResponse(paginated, total, pagination));
+  } else {
+    res.json(result);
+  }
 });
 
 // POST /api/v1/customers
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
-  const db = supabaseForToken(req.user!.token);
-  const ownerId = req.user!.role === 'owner' ? req.user!.id : req.user!.ownerId;
+  const db = req.db!;
+  const ownerId = resolveOwnerId(req.user!);
   const { id, name, email, mobile, status } = req.body;
 
   const { error } = await db.from('customers').insert({
@@ -92,8 +101,8 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 
 // PUT /api/v1/customers/:id
 router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  const db = supabaseForToken(req.user!.token);
-  const ownerId = req.user!.role === 'owner' ? req.user!.id : req.user!.ownerId;
+  const db = req.db!;
+  const ownerId = resolveOwnerId(req.user!);
   const { name, email, mobile, status } = req.body;
 
   const { error } = await db
@@ -121,7 +130,7 @@ router.patch('/:id/status', async (req: AuthenticatedRequest, res: Response) => 
     res.status(400).json({ error: "status must be 'Active' or 'Inactive'" });
     return;
   }
-  const db = supabaseForToken(req.user!.token);
+  const db = req.db!;
   const { error } = await db
     .from('customers')
     .update({ status })

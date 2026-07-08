@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
-import { supabaseForToken } from '../supabaseClient';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { rowToTransaction } from '../utils/mappers';
+import { resolveOwnerId } from '../utils/auth';
+import { parsePagination, paginatedResponse } from '../utils/pagination';
 
 const router = Router();
 router.use(requireAuth as any);
@@ -14,7 +15,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  const db = supabaseForToken(req.user!.token);
+  const db = req.db!;
   const { error } = await db.from('transactions').insert({
     id: transaction.id,
     card_id: cardId,
@@ -38,8 +39,8 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 
 // GET /api/v1/transactions — List all transactions for the owner's cards
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
-  const db = supabaseForToken(req.user!.token);
-  const ownerId = req.user!.role === 'owner' ? req.user!.id : req.user!.ownerId;
+  const db = req.db!;
+  const ownerId = resolveOwnerId(req.user!);
 
   // Get card IDs for this owner first
   const { data: cards } = await db
@@ -48,7 +49,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     .eq('owner_id', ownerId);
 
   if (!cards || cards.length === 0) {
-    res.json([]);
+    res.json(req.query.page !== undefined ? paginatedResponse([], 0, parsePagination(req)) : []);
     return;
   }
 
@@ -63,7 +64,18 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     res.status(500).json({ error: 'Unable to fetch transactions right now.' });
     return;
   }
-  res.json((data ?? []).map(rowToTransaction));
+
+  const all = (data ?? []).map(rowToTransaction);
+
+  // Pagination (backward-compatible: no ?page param returns full array)
+  if (req.query.page !== undefined) {
+    const pagination = parsePagination(req);
+    const total = all.length;
+    const paginated = all.slice(pagination.offset, pagination.offset + pagination.limit);
+    res.json(paginatedResponse(paginated, total, pagination));
+  } else {
+    res.json(all);
+  }
 });
 
 export default router;

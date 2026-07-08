@@ -47,6 +47,7 @@ export function rowToCampaign(row: any) {
     colors: row.colors,
     totalStamps: row.total_stamps,
     social: row.social,
+    mode: row.mode || 'stamps',
   };
 }
 
@@ -63,5 +64,20 @@ export function rowToIssuedCard(row: any, history?: any[]) {
     completedDate: row.completed_date,
     templateSnapshot: row.template_snapshot,
     history: history ?? (row.transactions ?? []).map(rowToTransaction),
+  };
+}
+
+export function rowToStampRequest(r: any) {
+  return {
+    id: r.id,
+    customerName: r.customer_name,
+    customerPhone: r.customer_phone,
+    customerEmail: r.customer_email,
+    campaignId: r.campaign_id,
+    campaignName: r.campaigns?.name || '',
+    status: r.status,
+    acceptedCardId: r.accepted_card_id,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   };
 }
