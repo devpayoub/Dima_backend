@@ -69,7 +69,7 @@ router.get('/users', asyncHandler(async (req: AuthenticatedRequest, res) => {
   }
 
   const adminId = req.user!.id;
-  let filtered = (data ?? []).filter(p => p.role === 'owner' && p.id !== adminId);
+  let filtered = (data ?? []).filter(p => p.role === 'owner');
 
   const search = req.query.search as string | undefined;
   if (search) {

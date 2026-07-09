@@ -14,7 +14,13 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 
   const { data: customerRows, error: cErr } = await db
     .from('customers')
-    .select('*')
+    .select(`
+      *,
+      issued_cards (
+        *,
+        transactions (*)
+      )
+    `)
     .eq('owner_id', ownerId)
     .order('created_at', { ascending: true });
 
@@ -28,43 +34,27 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  const customerIds = customerRows.map((c: { id: string }) => c.id);
+  // Format the nested response for the frontend
+  const result = customerRows.map((c: any) => {
+    // Supabase nested joins return arrays, but just in case, default to empty array
+    const cards = Array.isArray(c.issued_cards) ? c.issued_cards : [];
+    
+    // Sort transactions if they exist inside the nested cards, since we couldn't easily order nested relations in one go in standard PostgREST without an order query inside the select string, but we can do it in memory.
+    const mappedCards = cards.map((card: any) => {
+       const txs = Array.isArray(card.transactions) ? card.transactions : [];
+       txs.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+       return rowToIssuedCard(card, txs.map(rowToTransaction));
+    });
 
-  const { data: cardRows } = await db
-    .from('issued_cards')
-    .select('*')
-    .in('customer_id', customerIds);
-
-  const cardIds = (cardRows ?? []).map((r: { id: string }) => r.id);
-
-  let txMap: Record<string, any[]> = {};
-  if (cardIds.length > 0) {
-    const { data: txRows } = await db
-      .from('transactions')
-      .select('*')
-      .in('card_id', cardIds)
-      .order('timestamp', { ascending: true });
-
-    for (const t of txRows ?? []) {
-      txMap[t.card_id] = txMap[t.card_id] ?? [];
-      txMap[t.card_id].push(rowToTransaction(t));
-    }
-  }
-
-  const cardsByCustomer: Record<string, any[]> = {};
-  for (const r of cardRows ?? []) {
-    cardsByCustomer[r.customer_id] = cardsByCustomer[r.customer_id] ?? [];
-    cardsByCustomer[r.customer_id].push(rowToIssuedCard(r, txMap[r.id] ?? []));
-  }
-
-  const result = customerRows.map((c: any) => ({
-    id: c.id,
-    name: c.name,
-    email: c.email,
-    mobile: c.mobile,
-    status: c.status,
-    cards: cardsByCustomer[c.id] ?? [],
-  }));
+    return {
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      mobile: c.mobile,
+      status: c.status,
+      cards: mappedCards,
+    };
+  });
 
   // Pagination (backward-compatible: no ?page param returns full array)
   if (req.query.page !== undefined) {
