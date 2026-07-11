@@ -9,7 +9,7 @@ export function rowToProfile(row: any) {
     ownerId: row.owner_id,
     status: row.status,
     access: row.access,
-    tier: row.tier ?? 'free',
+    tier: row.tier ?? 'standard',
     tierExpiresAt: row.tier_expires_at,
     createdAt: row.created_at,
   };

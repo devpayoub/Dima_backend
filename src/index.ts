@@ -49,7 +49,6 @@ app.use('/api/v1/dashboard', dashboardRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('[server] Unhandled error:', err);
   res.status(500).json({ error: 'An unexpected error occurred.' });
 });
 
@@ -63,3 +62,5 @@ app.listen(port, () => {
   console.log(`\n🚀  Stampee API running → http://localhost:${port}/api/v1`);
   console.log(`   Health check → http://localhost:${port}/api/v1/health\n`);
 });
+
+app.listen(port, () => {});

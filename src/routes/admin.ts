@@ -64,7 +64,6 @@ router.get('/users', asyncHandler(async (req: AuthenticatedRequest, res) => {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('[admin /users] DB error:', error);
     throw error;
   }
 
@@ -185,9 +184,7 @@ router.post('/users', asyncHandler(async (req, res) => {
   if (tier && data.user) {
     await new Promise(resolve => setTimeout(resolve, 1000));
     const { error: updateError } = await supabaseAdmin.from('profiles').update({ tier }).eq('id', data.user.id);
-    if (updateError) {
-      console.error('[admin /users POST] Failed to update tier:', updateError);
-    }
+    // updateError intentionally ignored
   }
   
   res.json(data.user);
@@ -219,7 +216,7 @@ router.put('/users/:id/password', asyncHandler(async (req, res) => {
 // Change user tier
 router.put('/users/:id/tier', asyncHandler(async (req, res) => {
   const { tier } = req.body;
-  const validTiers = ['free', 'standard', 'popular', 'premium', 'pro'];
+  const validTiers = ['standard', 'popular', 'premium'];
   if (!tier || !validTiers.includes(tier)) {
     res.status(400).json({ error: `Tier must be one of: ${validTiers.join(', ')}` });
     return;

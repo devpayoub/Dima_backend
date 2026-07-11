@@ -98,8 +98,8 @@ router.put('/:id/simple', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    // Premium/Pro owners must use the full update endpoint
-    if (profile.tier === 'premium' || profile.tier === 'pro') {
+    // Premium owners must use the full update endpoint
+    if (profile.tier === 'premium') {
       res.status(403).json({ error: 'Use the full editor for Premium accounts.' });
       return;
     }

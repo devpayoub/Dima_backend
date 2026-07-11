@@ -59,11 +59,10 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 
   // Enforce tier limits
   const { data: profile } = await supabaseAdmin.from('profiles').select('tier').eq('id', ownerId).single();
-  if (profile && (profile.tier === 'standard' || profile.tier === 'free')) {
+  if (profile && profile.tier === 'standard') {
     const { count } = await supabaseAdmin.from('issued_cards').select('*', { count: 'exact', head: true }).eq('owner_id', ownerId);
-    const limit = profile.tier === 'standard' ? 300 : 50;
-    if (count !== null && count >= limit) {
-      res.status(400).json({ error: `Plan limit reached: You can only issue up to ${limit} cards on the ${profile.tier} plan.` });
+    if (count !== null && count >= 300) {
+      res.status(400).json({ error: 'Plan limit reached: You can only issue up to 300 cards on the Standard plan.' });
       return;
     }
   }
@@ -111,10 +110,9 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
 // DELETE /api/v1/issued-cards/:id
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  const db = req.db!;
-  const { error } = await db.from('issued_cards').delete().eq('id', req.params.id);
+  const { error } = await supabaseAdmin.from('issued_cards').delete().eq('id', req.params.id);
   if (error) {
-    res.status(500).json({ error: 'Unable to revoke this card right now. Please try again.' });
+    res.status(500).json({ error: 'Unable to delete this card right now. Please try again.' });
     return;
   }
   res.json({ ok: true });
